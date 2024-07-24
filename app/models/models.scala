@@ -401,8 +401,11 @@ class RankingTableToJson(implicit in: Injections) {
  *
  *
  * @param decoder 対象のサマリーシート
+ * @param in 依存性注入
  */
-class SheetDecoderToJson(decoder: SheetDecoder) {
+class SheetDecoderToJson(decoder: SheetDecoder)(implicit in: Injections) {
+	val postal = "[\\u3012\\u3020]\\s*?\\d{3}-?\\d{4}".r
+
 	/**
 	 * サマリーシートの内容をJSONの文字列に変換します。
 	 *
@@ -411,10 +414,34 @@ class SheetDecoderToJson(decoder: SheetDecoder) {
 	def json = Json.stringify(Json.toJson(Map(
 		"call" -> decoder.getString("CALLSIGN"),
 		"name" -> decoder.getString("NAME"),
-		"addr" -> decoder.getString("ADDRESS"),
+		"post" -> post(decoder.getString("ADDRESS"))._1.trim,
+		"addr" -> post(decoder.getString("ADDRESS"))._2.trim,
 		"mail" -> decoder.getString("EMAIL"),
-		"note" -> decoder.getString("COMMENTS")
+		"note" -> decoder.getString("COMMENTS"),
+		"sect" -> section.name(),
+		"city" -> section.getCityBase().recommend(decoder.getString("OPPLACE")).name(),
 	)))
+
+	/**
+	 * 指定された名前に適合する部門を検索して返します。
+	 *
+	 * @return 部門
+	 */
+	def section: Section = {
+		val name = decoder.getString("CATEGORYNAME")
+		val code = decoder.getString("CATEGORYCODE")
+		in.rule.similar(Option(name).getOrElse(code))
+	}
+
+	/**
+	 * 住所から郵便番号と残りの文字列を抽出します。
+	 *
+	 * @return 郵便番号と残りの文字列
+	 */
+	def post(addr: String): (String, String) = {
+		val mat = postal.findFirstIn(addr.toUpperCase)
+		(mat.mkString, addr.replace(mat.mkString, ""))
+	}
 }
 
 
@@ -466,4 +493,59 @@ class DevelopForm extends Form[DevelopFormData](
 	)
 	(DevelopFormData.apply)
 	(DevelopFormData.unapply), Map.empty, Nil, None
+)
+
+
+/**
+ * メール送信のフォームに入力されたデータです。
+ *
+ *
+ * @param to 宛先
+ * @param sub 件名
+ * @param body 本文
+ *
+ * @since 2024/07/06
+ */
+case class MessageFormData(
+	to: String,
+	sub: String,
+	body: String,
+)
+
+
+/**
+ * メール送信のフォームに入力されたデータです。
+ *
+ *
+ * @since 2024/07/06
+ */
+object MessageFormData {
+	/**
+	 * メールのテンプレートを返します。
+	 *
+	 * @param in 依存性注入
+	 * @return フォームの内容
+	 */
+	def data(implicit in: Injections) = MessageFormData(
+		to = in.rule.mail,
+		sub = "",
+		body = views.txt.mails.mailer().body.trim,
+	)
+}
+
+
+/**
+ * メール送信のフォームとデータの関連付けと検証を実装します。
+ *
+ *
+ * @since 2024/07/06
+ */
+class MessageForm extends Form[MessageFormData](
+	Forms.mapping(
+		"to" -> Forms.email,
+		"sub" -> Forms.nonEmptyText,
+		"body" -> Forms.nonEmptyText,
+	)
+	(MessageFormData.apply)
+	(MessageFormData.unapply), Map.empty, Nil, None
 )

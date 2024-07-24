@@ -8,7 +8,7 @@ package controllers
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
 
-import ats4.root._
+import ats4.root.{ATS, CSV}
 
 import scala.concurrent.{Future, ExecutionContext => EC}
 import scala.concurrent.duration._
@@ -23,7 +23,6 @@ import injects.Injections
 import models._
 import tasks._
 import views.html.pages
-import views.txt.{pages => text}
 
 import akka.actor.{ActorSystem, Props}
 import akka.stream.{Materializer => Mat}
@@ -40,7 +39,7 @@ class Index @Inject()(implicit in: Injections) extends IC {
 	/**
 	 * 非管理者権限を表す真偽値です。
 	 */
-	implicit val admin = false
+	implicit val admin: Boolean = false
 
 	/**
 	 * トップページのビューを返します。
@@ -97,7 +96,7 @@ class Entry @Inject()(implicit in: Injections) extends IC {
 	/**
 	 * 非管理者権限を表す真偽値です。
 	 */
-	implicit val admin = false
+	implicit val admin: Boolean = false
 
 	/**
 	 * 書類提出のリクエストを処理して、確認画面のページのビューを返します。
@@ -133,7 +132,7 @@ class Admin @Inject()(implicit in: Injections) extends IC {
 	/**
 	 * 管理者権限を表す真偽値です。
 	 */
-	implicit val admin = true
+	implicit val admin: Boolean = true
 
 	/**
 	 * 管理画面のページのビューを返します。
@@ -154,7 +153,7 @@ class Admin @Inject()(implicit in: Injections) extends IC {
 	 *
 	 * @return 集計結果のページ
 	 */
-	def excel = Action(Ok(text.excel().body.trim))
+	def excel = Action(Ok(new CSV(in.ats, in.rule).dump()))
 
 	/**
 	 * 指定された呼出符号の参加局の専用の書類提出のページのビューを返します。
@@ -194,7 +193,7 @@ class Force @Inject()(implicit in: Injections) extends IC {
 	/**
 	 * 管理者権限を表す真偽値です。
 	 */
-	implicit val admin = true
+	implicit val admin: Boolean = true
 
 	/**
 	 * 全ての参加局の情報を削除します。
@@ -238,7 +237,7 @@ class Shell @Inject()(implicit in: Injections) extends IC {
 	/**
 	 * 管理者権限を表す真偽値です。
 	 */
-	implicit val admin = true
+	implicit val admin: Boolean = true
 
 	/**
 	 * 開発画面のページのビューを返します。
@@ -253,6 +252,35 @@ class Shell @Inject()(implicit in: Injections) extends IC {
 	 * @return 管理画面のページ
 	 */
 	def debug = Action(implicit r => Ok(pages.debug(new DevelopForm().bindFromRequest())))
+}
+
+
+/**
+ * 管理者権限を伴って、メール送信のGETまたはPOSTメソッドを処理するコントローラです。
+ *
+ *
+ * @param in 依存性注入
+ */
+@Singleton
+class Email @Inject()(implicit in: Injections) extends IC {
+	/**
+	 * 管理者権限を表す真偽値です。
+	 */
+	implicit val admin: Boolean = true
+
+	/**
+	 * メール送信のページのビューを返します。
+	 *
+	 * @return メール送信のページ
+	 */
+	def email = Action(implicit r => Ok(pages.email(new MessageForm().fill(MessageFormData.data))))
+
+	/**
+	 * メール送信のリクエストを処理します。
+	 *
+	 * @return メール送信のページ
+	 */
+	def shoot = Action(implicit r => Ok(new MailerTask().send(new MessageForm().bindFromRequest().get)))
 }
 
 
@@ -283,7 +311,7 @@ class Error @Inject()(implicit in: Injections) extends HttpErrorHandler {
 	/**
 	 * 非管理者権限を表す真偽値です。
 	 */
-	implicit val admin = false
+	implicit val admin: Boolean = false
 
 	/**
 	 * クライアント側のエラーを表示するページを返します。

@@ -116,9 +116,7 @@ class UpdateTask(implicit req: RequestHeader, in: Injections, admin: Boolean) {
 	 * @return 管理画面のページ
 	 */
 	def accept: Html = {
-		for (message <- in.ats.messages().list().asScala) util.Try(in.ats.messages().drop(message))
-		for (archive <- in.ats.archives().list().asScala) util.Try(in.ats.messages().push(archive))
-		for (station <- in.ats.stations().list().asScala) in.ats.update(station.call, in.rule)
+		in.ats.updateAll(in.rule)
 		pages.lists()
 	}
 }
@@ -188,8 +186,9 @@ class VerifyTask(implicit req: Request[AnyContent], in: Injections) {
  *
  *
  * @param req サマリーシートを含むリクエスト
+ * @param in 依存性注入
  */
-class FillInTask(implicit req: Request[AnyContent]) {
+class FillInTask(implicit req: Request[AnyContent], in: Injections) {
 	/**
 	 * サマリーシートを読み取るデコーダです。
 	 */
@@ -230,29 +229,55 @@ class FileDLTask(call: String, file: String)(implicit in: Injections) {
  * 書類提出を受理した内容のメールを参加局に送信します。
  *
  *
+ * @param req リクエストヘッダ
  * @param in 依存性注入
+ * @param admin 管理者権限
  */
-class NotifyTask(implicit in: Injections) {
+class NotifyTask(implicit req: RequestHeader, in: Injections, admin: Boolean) {
 	/**
 	 * 指定された参加局に対してメールを送信します。
 	 *
 	 * @param station 参加局の登録情報
 	 */
-	def send(station: StationData): Unit = util.Try {
+	def send(station: StationData): Unit = {
+		val text = views.txt.mails.accept(station.call).body.trim
+		new MailerTask().send(new MessageFormData(
+			to = "%s <%s>".format(station.call, station.mail),
+			sub = text.linesIterator.toSeq.head.split(";").head.trim,
+			body = text.linesWithSeparators.toSeq.tail.mkString.trim
+		))
+	}
+}
+
+
+/**
+ * 指定された宛先・件名・本文のメールを送信します。
+ *
+ *
+ * @param req リクエストヘッダ
+ * @param in 依存性注入
+ * @param admin 管理者権限
+ */
+class MailerTask(implicit req: RequestHeader, in: Injections, admin: Boolean) {
+	/**
+	 * 指定された内容のメールを送信します。
+	 *
+	 * @param message 内容
+	 */
+	def send(message: MessageFormData): Html = util.Try {
 		val mail = new Email
 		val user = in.cf.get[String]("play.mailer.user")
 		val host = in.cf.get[String]("play.mailer.host")
-		val text = views.txt.pages.email(station.call).body.trim
 		mail.setFrom("%s <%s@%s>".format(in.rule.host, user, host))
-		mail.addTo("%s <%s>".format(station.call, station.mail))
+		mail.addTo(message.to)
 		mail.addBcc(in.rule.mail)
 		mail.addReplyTo(in.rule.mail)
-		mail.setSubject(text.linesIterator.toSeq.head.split(";").head.trim)
-		mail.setBodyText(text.linesWithSeparators.toSeq.tail.mkString.trim)
+		mail.setSubject(message.sub)
+		mail.setBodyText(message.body)
 		in.mc.send(mail)
 	}.recover {
 		case ex: EmailException => Logger("mail").error("MAIL ERROR!", ex)
-	}
+	}.map(_ => pages.lists()).get
 }
 
 
@@ -292,7 +317,7 @@ class SocketTask(out: ActorRef, token: UUID)(implicit in: Injections) extends Ac
 		val qsoDiff = decoder.unpack(data.tail).asScala
 		in.ats.messages().drop(station.call, qsoDiff.take(data.head.toInt & 0xFF).asJava)
 		in.ats.messages().push(station.call, qsoDiff.drop(data.head.toInt & 0xFF).asJava)
-		in.ats.update(station.call, in.rule);
+		in.ats.update(station.call, in.rule)
 		Logger(this.getClass).info(s"update: $station.call")
 		if (in.rule.finish()) new RankingTableToJson().json else ""
 	}

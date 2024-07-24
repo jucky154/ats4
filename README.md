@@ -1,11 +1,11 @@
 ATS-4: Amateur-Radio Contest Administration System
 ====
 
-![image](https://img.shields.io/badge/sbt-1.5.5-red.svg)
+![image](https://img.shields.io/badge/sbt-1.10.0-red.svg)
 ![image](https://img.shields.io/badge/Java-JDK11-red.svg)
 ![image](https://img.shields.io/badge/Scala-2.13-orange.svg)
 ![image](https://img.shields.io/badge/JRuby-9.3-orange.svg)
-![image](https://img.shields.io/badge/PlayFramework-2.8-blueviolet.svg)
+![image](https://img.shields.io/badge/PlayFramework-2.9-blueviolet.svg)
 ![image](https://img.shields.io/badge/license-GPL3-darkblue.svg)
 ![badge](https://github.com/nextzlog/ats4/actions/workflows/build.yaml/badge.svg)
 
@@ -16,7 +16,7 @@ Feel free to visit [ALLJA1 ATS-4](https://allja1.org).
 
 - provides a web interface for contest-log acceptance.
 - verifies the uploaded logs according to the contest rules described in Ruby or LISP forms.
-- supports many contests including [UEC](https://www.ja1zgp.com/uectest_public_info), [ALLJA1](https://ja1zlo.u-tokyo.org/allja1), [REAL-TIME](https://ja1zlo.u-tokyo.org/rt/rt1.html), [1-Area 6m AM](https://6mnet.jp/mannaka/blog) and [TAMAGAWA](http://apollo.c.ooco.jp).
+- supports many contests including [UEC](https://www.ja1zgp.com/uectest_public_info), [ALLJA1](https://ja1zlo.u-tokyo.org/allja1), [REAL-TIME](https://ja1zlo.u-tokyo.org/rt/rt1.html), [1-Area 6m AM](https://6mnet.jp/mannaka/blog) and [ALL GUNMA](https://www.jarl.com/gunma).
 
 ## Documents
 
